@@ -6,7 +6,7 @@ from google.cloud import aiplatform
 import google.cloud.aiplatform as aip
 from datetime import datetime
 from utils.helpers import get_config
-import uuid
+import os
 
 from data.iris_data import iris_data_op
 from data.nlp_data import nlp_data_op
@@ -15,7 +15,7 @@ from model.model_component import nlp_train_task
 
 # Globals
 config = get_config()
-PROJECT_ID = config.get("PROJECT_ID")
+PROJECT_ID = os.environ.get("PROJECT_ID")
 BUCKET_NAME = config.get("BUCKET_NAME")
 REGION = config.get("REGION")
 PIPELINE_NAME = config.get("PIPELINE_NAME")

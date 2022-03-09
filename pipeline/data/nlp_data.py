@@ -37,7 +37,6 @@ def nlp_data_pull(
     x_train = keras.preprocessing.sequence.pad_sequences(x_train, maxlen=maxlen)
     x_val = keras.preprocessing.sequence.pad_sequences(x_val, maxlen=maxlen)
 
-    print("save data")
     joblib.dump(x_train, f"{x_train_path}.pkl")
     joblib.dump(x_val, f"{x_val_path}.pkl")
     joblib.dump(y_train, f"{y_train_path}.pkl")

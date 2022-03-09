@@ -1,6 +1,6 @@
 import yaml
 from pathlib import Path
-from google.cloud import storage
+from google.cloud import storage, secretmanager
 import os
 
 
@@ -22,3 +22,4 @@ def upload_file(project_id, bucket, destination_filename, source_filename):
     bucket = client.bucket(bucket)
     blob = bucket.blob(destination_filename)
     blob.upload_from_filename(source_filename)
+
