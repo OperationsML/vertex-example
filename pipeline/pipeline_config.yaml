@@ -1,0 +1,4 @@
+PROJECT_ID: "ml-deploy-test-342522"
+BUCKET_NAME: "sjf-ml-artifacts"
+REGION: "us-central1"
+PIPELINE_NAME: "sklearn-test"

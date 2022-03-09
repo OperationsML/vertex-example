@@ -1,0 +1,476 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-iris-data-pull": {
+        "executorLabel": "exec-iris-data-pull",
+        "inputDefinitions": {
+          "parameters": {
+            "base_output_directory": {
+              "type": "STRING"
+            },
+            "location": {
+              "type": "STRING"
+            },
+            "network": {
+              "type": "STRING"
+            },
+            "project": {
+              "type": "STRING"
+            },
+            "service_account": {
+              "type": "STRING"
+            },
+            "tensorboard": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "iris_data_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "gcp_resources": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-nlp-data-pull": {
+        "executorLabel": "exec-nlp-data-pull",
+        "inputDefinitions": {
+          "artifacts": {
+            "input_file_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "base_output_directory": {
+              "type": "STRING"
+            },
+            "location": {
+              "type": "STRING"
+            },
+            "network": {
+              "type": "STRING"
+            },
+            "project": {
+              "type": "STRING"
+            },
+            "service_account": {
+              "type": "STRING"
+            },
+            "tensorboard": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "x_train_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "x_val_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "y_train_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "y_val_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "gcp_resources": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-train-task": {
+        "executorLabel": "exec-train-task",
+        "inputDefinitions": {
+          "artifacts": {
+            "x_train_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "x_val_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "y_train_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            },
+            "y_val_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "base_output_directory": {
+              "type": "STRING"
+            },
+            "location": {
+              "type": "STRING"
+            },
+            "network": {
+              "type": "STRING"
+            },
+            "project": {
+              "type": "STRING"
+            },
+            "service_account": {
+              "type": "STRING"
+            },
+            "tensorboard": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "model_path": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "gcp_resources": {
+              "type": "STRING"
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-iris-data-pull": {
+          "container": {
+            "args": [
+              "--type",
+              "CustomJob",
+              "--payload",
+              "{\"display_name\": \"Iris data pull\", \"job_spec\": {\"worker_pool_specs\": [{\"machine_spec\": {\"machine_type\": \"n1-standard-4\"}, \"replica_count\": 1, \"container_spec\": {\"image_uri\": \"python:3.9\", \"command\": [\"sh\", \"-c\", \"\\nif ! [ -x \\\"$(command -v pip)\\\" ]; then\\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\\nfi\\n\\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'joblib' 'kfp==1.8.11' && \\\"$0\\\" \\\"$@\\\"\\n\", \"sh\", \"-ec\", \"program_path=$(mktemp -d)\\nprintf \\\"%s\\\" \\\"$0\\\" > \\\"$program_path/ephemeral_component.py\\\"\\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \\\"$program_path/ephemeral_component.py\\\"                         \\\"$@\\\"\\n\", \"\\nimport kfp\\nfrom kfp.v2 import dsl\\nfrom kfp.v2.dsl import *\\nfrom typing import *\\n\\ndef iris_data_pull(iris_data_path: OutputPath()):\\n    from sklearn.datasets import load_iris\\n    import joblib\\n\\n    x, y = load_iris(return_X_y=True)\\n\\n    joblib.dump(x, f\\\"{iris_data_path}.pkl\\\")\\n\\n\"], \"args\": [\"--executor_input\", \"{{$.json_escape[1]}}\", \"--function_to_execute\", \"iris_data_pull\"]}, \"disk_spec\": {\"boot_disk_type\": \"pd-ssd\", \"boot_disk_size_gb\": 100}}], \"service_account\": \"{{$.inputs.parameters['service_account']}}\", \"network\": \"{{$.inputs.parameters['network']}}\", \"tensorboard\": \"{{$.inputs.parameters['tensorboard']}}\", \"base_output_directory\": {\"output_uri_prefix\": \"{{$.inputs.parameters['base_output_directory']}}\"}}}",
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--gcp_resources",
+              "{{$.outputs.parameters['gcp_resources'].output_file}}"
+            ],
+            "command": [
+              "python3",
+              "-u",
+              "-m",
+              "google_cloud_pipeline_components.container.v1.gcp_launcher.launcher"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:1.0.0"
+          }
+        },
+        "exec-nlp-data-pull": {
+          "container": {
+            "args": [
+              "--type",
+              "CustomJob",
+              "--payload",
+              "{\"display_name\": \"Nlp data pull\", \"job_spec\": {\"worker_pool_specs\": [{\"machine_spec\": {\"machine_type\": \"e2-standard-8\"}, \"replica_count\": 1, \"container_spec\": {\"image_uri\": \"us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-6:latest\", \"command\": [\"sh\", \"-c\", \"\\nif ! [ -x \\\"$(command -v pip)\\\" ]; then\\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\\nfi\\n\\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'joblib' 'kfp==1.8.11' && \\\"$0\\\" \\\"$@\\\"\\n\", \"sh\", \"-ec\", \"program_path=$(mktemp -d)\\nprintf \\\"%s\\\" \\\"$0\\\" > \\\"$program_path/ephemeral_component.py\\\"\\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \\\"$program_path/ephemeral_component.py\\\"                         \\\"$@\\\"\\n\", \"\\nimport kfp\\nfrom kfp.v2 import dsl\\nfrom kfp.v2.dsl import *\\nfrom typing import *\\n\\ndef nlp_data_pull(\\n    input_file_path: InputPath(),\\n    x_train_path: OutputPath(),\\n    y_train_path: OutputPath(),\\n    x_val_path: OutputPath(),\\n    y_val_path: OutputPath(),\\n):\\n\\n    import tensorflow as tf\\n    from tensorflow import keras\\n    import joblib\\n\\n    print(\\\"trying to load input path\\\")\\n    try:\\n        print(input_file_path)\\n    except Exception as e:\\n        pass\\n\\n    print(\\\"load nlp data\\\")\\n    vocab_size = 20000  # Only consider the top 20k words\\n    maxlen = 200  # Only consider the first 200 words of each movie review\\n    (x_train, y_train), (x_val, y_val) = keras.datasets.imdb.load_data(\\n        num_words=vocab_size\\n    )\\n    print(len(x_train), \\\"Training sequences\\\")\\n    print(len(x_val), \\\"Validation sequences\\\")\\n    x_train = keras.preprocessing.sequence.pad_sequences(x_train, maxlen=maxlen)\\n    x_val = keras.preprocessing.sequence.pad_sequences(x_val, maxlen=maxlen)\\n\\n    print(\\\"save data\\\")\\n    joblib.dump(x_train, f\\\"{x_train_path}.pkl\\\")\\n    joblib.dump(x_val, f\\\"{x_val_path}.pkl\\\")\\n    joblib.dump(y_train, f\\\"{y_train_path}.pkl\\\")\\n    joblib.dump(y_val, f\\\"{y_val_path}.pkl\\\")\\n    print(\\\"job complete\\\")\\n\\n\"], \"args\": [\"--executor_input\", \"{{$.json_escape[1]}}\", \"--function_to_execute\", \"nlp_data_pull\"]}, \"disk_spec\": {\"boot_disk_type\": \"pd-ssd\", \"boot_disk_size_gb\": 100}}], \"service_account\": \"{{$.inputs.parameters['service_account']}}\", \"network\": \"{{$.inputs.parameters['network']}}\", \"tensorboard\": \"{{$.inputs.parameters['tensorboard']}}\", \"base_output_directory\": {\"output_uri_prefix\": \"{{$.inputs.parameters['base_output_directory']}}\"}}}",
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--gcp_resources",
+              "{{$.outputs.parameters['gcp_resources'].output_file}}"
+            ],
+            "command": [
+              "python3",
+              "-u",
+              "-m",
+              "google_cloud_pipeline_components.container.v1.gcp_launcher.launcher"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:1.0.0"
+          }
+        },
+        "exec-train-task": {
+          "container": {
+            "args": [
+              "--type",
+              "CustomJob",
+              "--payload",
+              "{\"display_name\": \"Train task\", \"job_spec\": {\"worker_pool_specs\": [{\"machine_spec\": {\"machine_type\": \"n1-standard-4\", \"accelerator_type\": \"NVIDIA_TESLA_T4\", \"accelerator_count\": 1}, \"replica_count\": 1, \"container_spec\": {\"image_uri\": \"us-docker.pkg.dev/vertex-ai/training/tf-gpu.2-6:latest\", \"command\": [\"sh\", \"-c\", \"\\nif ! [ -x \\\"$(command -v pip)\\\" ]; then\\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\\nfi\\n\\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'joblib' 'kfp==1.8.11' && \\\"$0\\\" \\\"$@\\\"\\n\", \"sh\", \"-ec\", \"program_path=$(mktemp -d)\\nprintf \\\"%s\\\" \\\"$0\\\" > \\\"$program_path/ephemeral_component.py\\\"\\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \\\"$program_path/ephemeral_component.py\\\"                         \\\"$@\\\"\\n\", \"\\nimport kfp\\nfrom kfp.v2 import dsl\\nfrom kfp.v2.dsl import *\\nfrom typing import *\\n\\ndef train_task(\\n    x_train_path: InputPath(),\\n    y_train_path: InputPath(),\\n    x_val_path: InputPath(),\\n    y_val_path: InputPath(),\\n    model_path: OutputPath(),\\n):\\n    import logging\\n    import sys\\n\\n    root = logging.getLogger()\\n    root.setLevel(logging.DEBUG)\\n\\n    handler = logging.StreamHandler(sys.stdout)\\n    handler.setLevel(logging.DEBUG)\\n    formatter = logging.Formatter(\\n        \\\"%(asctime)s - %(name)s - %(levelname)s - %(message)s\\\"\\n    )\\n    handler.setFormatter(formatter)\\n    root.addHandler(handler)\\n\\n    import tensorflow as tf\\n    from tensorflow import keras\\n    from tensorflow.keras import layers\\n    import joblib\\n\\n    vocab_size = 20000  # Only consider the top 20k words\\n    maxlen = 200  # Only consider the first 200 words of each movie review\\n\\n    class TransformerBlock(tf.keras.layers.Layer):\\n        def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1, **kwargs):\\n            super(TransformerBlock, self).__init__()\\n            self.embed_dim = embed_dim\\n            self.num_heads = num_heads\\n            self.ff_dim = ff_dim\\n            self.rate = rate\\n            self.att = tf.keras.layers.MultiHeadAttention(\\n                num_heads=self.num_heads, key_dim=self.embed_dim\\n            )\\n            self.ffn = tf.keras.Sequential(\\n                [\\n                    tf.keras.layers.Dense(self.ff_dim, activation=\\\"relu\\\"),\\n                    tf.keras.layers.Dense(self.embed_dim),\\n                ]\\n            )\\n            self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)\\n            self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)\\n            self.dropout1 = tf.keras.layers.Dropout(self.rate)\\n            self.dropout2 = tf.keras.layers.Dropout(self.rate)\\n\\n        def get_config(self):\\n            config = super().get_config().copy()\\n            config.update(\\n                {\\n                    \\\"embed_dim\\\": self.embed_dim,\\n                    \\\"num_heads\\\": self.num_heads,\\n                    \\\"ff_dim\\\": self.ff_dim,\\n                    \\\"rate\\\": self.rate,\\n                    \\\"att\\\": self.att,\\n                    \\\"ffn\\\": self.ffn,\\n                    \\\"layernorm1\\\": self.layernorm1,\\n                    \\\"layernorm2\\\": self.layernorm2,\\n                    \\\"dropout1\\\": self.dropout1,\\n                    \\\"dropout2\\\": self.dropout2,\\n                }\\n            )\\n            return config\\n\\n        def call(self, inputs, training):\\n            attn_output = self.att(inputs, inputs)\\n            attn_output = self.dropout1(attn_output, training=training)\\n            out1 = self.layernorm1(inputs + attn_output)\\n            ffn_output = self.ffn(out1)\\n            ffn_output = self.dropout2(ffn_output, training=training)\\n            return self.layernorm2(out1 + ffn_output)\\n\\n    class TokenAndPositionEmbedding(tf.keras.layers.Layer):\\n        def __init__(self, maxlen, vocab_size, embed_dim, **kwargs):\\n            super(TokenAndPositionEmbedding, self).__init__()\\n            self.maxlen = maxlen\\n            self.vocab_size = vocab_size\\n            self.embed_dim = embed_dim\\n            self.token_emb = tf.keras.layers.Embedding(\\n                input_dim=self.vocab_size, output_dim=self.embed_dim, mask_zero=True\\n            )\\n            self.pos_emb = tf.keras.layers.Embedding(\\n                input_dim=self.maxlen, output_dim=self.embed_dim, mask_zero=True\\n            )\\n\\n        def get_config(self):\\n            config = super().get_config().copy()\\n            config.update(\\n                {\\n                    \\\"maxlen\\\": self.maxlen,\\n                    \\\"vocab_size\\\": self.vocab_size,\\n                    \\\"embed_dim\\\": self.embed_dim,\\n                    \\\"token_emb\\\": self.token_emb,\\n                    \\\"pos_emb\\\": self.pos_emb,\\n                }\\n            )\\n            return config\\n\\n        def call(self, x):\\n            maxlen = tf.shape(x)[-1]\\n            positions = tf.range(start=0, limit=maxlen, delta=1)\\n            positions = self.pos_emb(positions)\\n            x = self.token_emb(x)\\n            return x + positions\\n\\n    embed_dim = 32  # Embedding size for each token\\n    num_heads = 2  # Number of attention heads\\n    ff_dim = 32  # Hidden layer size in feed forward network inside transformer\\n\\n    inputs = layers.Input(shape=(maxlen,))\\n    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)\\n    x = embedding_layer(inputs)\\n    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)\\n    x = transformer_block(x)\\n    x = layers.GlobalAveragePooling1D()(x)\\n    x = layers.Dropout(0.1)(x)\\n    x = layers.Dense(20, activation=\\\"relu\\\")(x)\\n    x = layers.Dropout(0.1)(x)\\n    outputs = layers.Dense(2, activation=\\\"softmax\\\")(x)\\n\\n    model = keras.Model(inputs=inputs, outputs=outputs)\\n\\n    model.compile(\\n        optimizer=\\\"adam\\\", loss=\\\"sparse_categorical_crossentropy\\\", metrics=[\\\"accuracy\\\"]\\n    )\\n\\n    callbacks = [\\n        keras.callbacks.ModelCheckpoint(f\\\"{model_path}.keras\\\", save_best_only=True)\\n    ]\\n\\n    # Load data\\n    x_train = joblib.load(f\\\"{x_train_path}.pkl\\\")\\n    y_train = joblib.load(f\\\"{y_train_path}.pkl\\\")\\n    x_val = joblib.load(f\\\"{x_val_path}.pkl\\\")\\n    y_val = joblib.load(f\\\"{y_val_path}.pkl\\\")\\n\\n    history = model.fit(\\n        x_train,\\n        y_train,\\n        batch_size=32,\\n        validation_data=(x_val, y_val),\\n        epochs=10,\\n        callbacks=callbacks,\\n    )\\n\\n\"], \"args\": [\"--executor_input\", \"{{$.json_escape[1]}}\", \"--function_to_execute\", \"train_task\"]}, \"disk_spec\": {\"boot_disk_type\": \"pd-ssd\", \"boot_disk_size_gb\": 100}}], \"service_account\": \"{{$.inputs.parameters['service_account']}}\", \"network\": \"{{$.inputs.parameters['network']}}\", \"tensorboard\": \"{{$.inputs.parameters['tensorboard']}}\", \"base_output_directory\": {\"output_uri_prefix\": \"{{$.inputs.parameters['base_output_directory']}}\"}}}",
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--gcp_resources",
+              "{{$.outputs.parameters['gcp_resources'].output_file}}"
+            ],
+            "command": [
+              "python3",
+              "-u",
+              "-m",
+              "google_cloud_pipeline_components.container.v1.gcp_launcher.launcher"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:1.0.0"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "pipeline-v2"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "iris-data-pull": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-iris-data-pull"
+            },
+            "inputs": {
+              "parameters": {
+                "base_output_directory": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "location": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "us-central1"
+                    }
+                  }
+                },
+                "network": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "project": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "ml-deploy-test-342522"
+                    }
+                  }
+                },
+                "service_account": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "tensorboard": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "iris-data-pull"
+            }
+          },
+          "nlp-data-pull": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-nlp-data-pull"
+            },
+            "dependentTasks": [
+              "iris-data-pull"
+            ],
+            "inputs": {
+              "artifacts": {
+                "input_file_path": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "iris_data_path",
+                    "producerTask": "iris-data-pull"
+                  }
+                }
+              },
+              "parameters": {
+                "base_output_directory": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "location": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "us-central1"
+                    }
+                  }
+                },
+                "network": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "project": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "ml-deploy-test-342522"
+                    }
+                  }
+                },
+                "service_account": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "tensorboard": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "nlp-data-pull"
+            }
+          },
+          "train-task": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-train-task"
+            },
+            "dependentTasks": [
+              "nlp-data-pull"
+            ],
+            "inputs": {
+              "artifacts": {
+                "x_train_path": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "x_train_path",
+                    "producerTask": "nlp-data-pull"
+                  }
+                },
+                "x_val_path": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "x_val_path",
+                    "producerTask": "nlp-data-pull"
+                  }
+                },
+                "y_train_path": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "y_train_path",
+                    "producerTask": "nlp-data-pull"
+                  }
+                },
+                "y_val_path": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "y_val_path",
+                    "producerTask": "nlp-data-pull"
+                  }
+                }
+              },
+              "parameters": {
+                "base_output_directory": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "location": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "us-central1"
+                    }
+                  }
+                },
+                "network": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "project": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "ml-deploy-test-342522"
+                    }
+                  }
+                },
+                "service_account": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "tensorboard": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "train-task"
+            }
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.11"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "sjf-ml-artifacts/pipeline"
+  }
+}
